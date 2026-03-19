@@ -1,0 +1,6 @@
+# Preserve LF line endings for embedded test/benchmark assets
+tests/assets/** -text
+benchmark/assets/** -text
+examples/www/** -text
+examples/traverse/site/** -text
+tests/cmake/duplicate_files/assets/** -text
