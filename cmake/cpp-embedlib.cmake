@@ -6,7 +6,7 @@
 #   cpp_embedlib_add(MyAssets FOLDER www/ NAMESPACE Web)
 
 # Remember the directory where this script lives (for locating the generate script)
-set(_CPP_EMBEDLIB_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+set(_CPP_EMBEDLIB_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "")
 
 # Header-only integration for cpp-httplib (requires httplib::httplib to be available)
 if(NOT TARGET cpp-embedlib-httplib)
