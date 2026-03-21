@@ -1,5 +1,7 @@
 # cpp-embedlib
 
+[![test](https://github.com/yhirose/cpp-embedlib/actions/workflows/ci.yml/badge.svg)](https://github.com/yhirose/cpp-embedlib/actions/workflows/ci.yml)
+
 A C++20 CMake library for embedding files and directories into binaries. Access embedded files at runtime through a simple, type-safe API with zero-copy reads.
 
 Pairs seamlessly with [cpp-httplib](https://github.com/yhirose/cpp-httplib) to serve embedded files over HTTP — build a self-contained web server with no external assets.
