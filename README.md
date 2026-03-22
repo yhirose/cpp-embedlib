@@ -6,6 +6,8 @@ A C++20 CMake library for embedding files and directories into binaries. Access 
 
 Pairs seamlessly with [cpp-httplib](https://github.com/yhirose/cpp-httplib) to serve embedded files over HTTP — build a self-contained web server with no external assets.
 
+This library is used for writing ["Building a Desktop LLM App with cpp-httplib"](https://yhirose.github.io/cpp-httplib/en/llm-app/).
+
 ## Features
 
 - **Single-header runtime API** with `std::span` and `std::string_view` (zero-copy access)
