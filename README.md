@@ -10,7 +10,8 @@ This library is used in ["Building a Desktop LLM App with cpp-httplib"](https://
 
 ## Features
 
-- **Single-header runtime API** with `std::span` (or a C++17 fallback) and `std::string_view` (zero-copy access)
+- **Single umbrella header** (`<cpp-embedlib/cpp-embedlib.h>`) with `std::span` (or a C++17 fallback) and
+  `std::string_view` (zero-copy access)
 - **MIME type detection** from file extensions (55+ built-in types, user-customizable)
 - **cpp-httplib integration** — serve embedded files with one line of code
 
