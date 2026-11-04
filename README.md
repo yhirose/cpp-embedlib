@@ -2,7 +2,7 @@
 
 [![test](https://github.com/yhirose/cpp-embedlib/actions/workflows/ci.yml/badge.svg)](https://github.com/yhirose/cpp-embedlib/actions/workflows/ci.yml)
 
-A C++20 CMake library for embedding files and directories into binaries. Access embedded files at runtime through a simple, type-safe API with zero-copy reads.
+A C++17/C++20 CMake library for embedding files and directories into binaries. Access embedded files at runtime through a simple, type-safe API with zero-copy reads.
 
 Pairs seamlessly with [cpp-httplib](https://github.com/yhirose/cpp-httplib) to serve embedded files over HTTP — build a self-contained web server with no external assets.
 
@@ -10,13 +10,14 @@ This library is used in ["Building a Desktop LLM App with cpp-httplib"](https://
 
 ## Features
 
-- **Single-header runtime API** with `std::span` and `std::string_view` (zero-copy access)
+- **Single-header runtime API** with `std::span` (or a C++17 fallback) and `std::string_view` (zero-copy access)
 - **MIME type detection** from file extensions (55+ built-in types, user-customizable)
 - **cpp-httplib integration** — serve embedded files with one line of code
 
 ## Requirements
 
-- C++20
+- C++17 or later (C++20 recommended; `std::span` is used when available, otherwise a
+  minimal built-in `cpp_embedlib::span` is substituted automatically)
 - CMake 3.20+
 
 ## Quick Start

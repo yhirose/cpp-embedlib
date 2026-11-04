@@ -270,7 +270,6 @@ ${_mime_checks}    }
 #pragma once
 #include <cpp-embedlib/cpp-embedlib.h>
 #include <cstdint>
-#include <span>
 #include <string_view>
 
 namespace ${_ARG_NAMESPACE} {
@@ -281,7 +280,7 @@ inline const ::cpp_embedlib::detail::StorageEntry _entries[] = {
 ${_entry_items}};
 
 inline const auto FS =
-    ::cpp_embedlib::EmbeddedFS{std::span{_entries}};
+    ::cpp_embedlib::EmbeddedFS{::cpp_embedlib::make_span(_entries)};
 
 ${_mime_func}} // namespace ${_ARG_NAMESPACE}
 ")
@@ -292,5 +291,5 @@ ${_mime_func}} // namespace ${_ARG_NAMESPACE}
         "${_gen_dir}"
         "${_CPP_EMBEDLIB_CMAKE_DIR}/../include"
     )
-    target_compile_features(${_target_name} PUBLIC cxx_std_20)
+    target_compile_features(${_target_name} PUBLIC cxx_std_17)
 endfunction()

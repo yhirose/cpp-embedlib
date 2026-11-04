@@ -2,22 +2,129 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+// ---------------------------------------------------------------------------
+// Language standard detection.
+//
+// MSVC reports __cplusplus as 199711L unless /Zc:__cplusplus is given, so use
+// _MSVC_LANG (which always reflects /std:c++NN) when available.
+// ---------------------------------------------------------------------------
+#if defined(_MSVC_LANG)
+#  define CPP_EMBEDLIB_CPLUSPLUS _MSVC_LANG
+#else
+#  define CPP_EMBEDLIB_CPLUSPLUS __cplusplus
+#endif
+
+#if CPP_EMBEDLIB_CPLUSPLUS < 201703L
+#  error "cpp-embedlib requires C++17 or later."
+#endif
+
+// std::span is C++20. On C++17 we fall back to a minimal equivalent below.
+// __has_include() also covers C++20 toolchains that ship an incomplete
+// standard library (e.g. older AppleClang with -std=c++2a).
+#if CPP_EMBEDLIB_CPLUSPLUS >= 202002L
+#  if defined(__has_include)
+#    if __has_include(<span>)
+#      define CPP_EMBEDLIB_HAS_STD_SPAN 1
+#    endif
+#  else
+#    define CPP_EMBEDLIB_HAS_STD_SPAN 1
+#  endif
+#endif
+
+#ifndef CPP_EMBEDLIB_HAS_STD_SPAN
+#  define CPP_EMBEDLIB_HAS_STD_SPAN 0
+#endif
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
+#if CPP_EMBEDLIB_HAS_STD_SPAN
+#  include <span>
+#endif
+
 namespace cpp_embedlib {
+
+// ---------------------------------------------------------------------------
+// span<T>: alias for std::span on C++20, minimal read-only replacement on C++17.
+// ---------------------------------------------------------------------------
+#if CPP_EMBEDLIB_HAS_STD_SPAN
+
+template <class T> using span = std::span<T>;
+
+#else // C++17
+
+template <class T> class span {
+public:
+  using element_type = T;
+  using value_type = std::remove_cv_t<T>;
+  using size_type = std::size_t;
+  using difference_type = std::ptrdiff_t;
+  using pointer = element_type *;
+  using const_pointer = const element_type *;
+  using reference = element_type &;
+  using iterator = pointer;
+
+  constexpr span() noexcept : data_(nullptr), size_(0) {}
+
+  constexpr span(pointer data, size_type size) noexcept
+      : data_(data), size_(size) {}
+
+  // Iterator-pair constructor: span{a, b} where b - a is the size.
+  constexpr span(pointer first, pointer last) noexcept
+      : data_(first), size_(static_cast<size_type>(last - first)) {}
+
+  template <size_type N>
+  constexpr span(element_type (&arr)[N]) noexcept : data_(arr), size_(N) {}
+
+  constexpr pointer data() const noexcept { return data_; }
+  constexpr size_type size() const noexcept { return size_; }
+  constexpr size_type size_bytes() const noexcept {
+    return size_ * sizeof(element_type);
+  }
+  constexpr bool empty() const noexcept { return size_ == 0; }
+  constexpr iterator begin() const noexcept { return data_; }
+  constexpr iterator end() const noexcept { return data_ + size_; }
+  constexpr reference operator[](size_type i) const noexcept { return data_[i]; }
+  constexpr reference front() const noexcept { return data_[0]; }
+  constexpr reference back() const noexcept { return data_[size_ - 1]; }
+
+  constexpr span subspan(size_type offset) const noexcept {
+    return (offset > size_) ? span{}
+                            : span{data_ + offset, size_ - offset};
+  }
+
+  constexpr span subspan(size_type offset, size_type count) const noexcept {
+    if (offset > size_) { return span{}; }
+    const size_type avail = size_ - offset;
+    return span{data_ + offset, (count < avail) ? count : avail};
+  }
+
+private:
+  pointer data_;
+  size_type size_;
+};
+
+#endif // CPP_EMBEDLIB_HAS_STD_SPAN
+
+// Array helper so generated code stays identical for C++17 and C++20
+// (C++20's std::span CTAD is not available on C++17).
+template <class T, std::size_t N>
+constexpr span<T> make_span(T (&arr)[N]) noexcept {
+  return span<T>(arr, N);
+}
 
 namespace detail {
 
 struct StorageEntry {
   std::string_view path;
-  std::span<const unsigned char> data;
+  span<const unsigned char> data;
   bool is_dir;
 };
 
@@ -80,7 +187,7 @@ inline std::optional<NormalizedPath> normalize_path(std::string_view path) {
     }
   }
 
-  // Fast path: path is already clean — no allocation, no copy
+  // Fast path: path is already clean - no allocation, no copy
   if (!needs_normalize) { return NormalizedPath{path}; }
 
   // Slow path: strip leading '/' and './', collapse '//', remove trailing '/'
@@ -224,7 +331,7 @@ public:
   bool is_dir() const { return entry_->is_dir; }
 
   // File data as bytes. Returns std::nullopt for directories.
-  std::optional<std::span<const unsigned char>> bytes() const {
+  std::optional<span<const unsigned char>> bytes() const {
     if (entry_->is_dir) { return std::nullopt; }
     return entry_->data;
   }
@@ -251,7 +358,7 @@ public:
 class EmbeddedFS {
   friend class Entry;
 
-  std::span<const detail::StorageEntry> entries_;
+  span<const detail::StorageEntry> entries_;
   static inline const detail::StorageEntry root_entry_{"", {}, true};
 
   const detail::StorageEntry *find_storage(std::string_view path) const {
@@ -268,7 +375,7 @@ class EmbeddedFS {
 
   // Find the range of entries whose path starts with prefix + "/".
   // Returns an empty span if the directory doesn't exist.
-  std::span<const detail::StorageEntry>
+  span<const detail::StorageEntry>
   find_prefix_range(std::string_view dir) const {
     auto normalized = detail::normalize_path(dir);
     if (!normalized) { return {}; }
@@ -281,7 +388,7 @@ class EmbeddedFS {
                                   detail::PathLess{});
 
     // Upper bound: increment last char of prefix to find end of range.
-    // '/' is 0x2F, '0' is 0x30 — so "sub/" becomes "sub0".
+    // '/' is 0x2F, '0' is 0x30 - so "sub/" becomes "sub0".
     prefix.back() += 1;
     auto last = std::lower_bound(first, entries_.end(),
                                  std::string_view{prefix},
@@ -291,7 +398,7 @@ class EmbeddedFS {
   }
 
 public:
-  EmbeddedFS(std::span<const detail::StorageEntry> entries)
+  EmbeddedFS(span<const detail::StorageEntry> entries)
       : entries_(entries) {}
 
   // --- Iterator ---
@@ -380,10 +487,10 @@ inline std::string_view Entry::mime_type() const {
 inline std::vector<Entry> Entry::children() const {
   if (!entry_->is_dir) { return {}; }
 
-  // entry_->path is a compile-time literal — already normalized.
+  // entry_->path is a compile-time literal - already normalized.
   // Inline the prefix-range logic to avoid redundant normalize_path().
   auto dir = entry_->path;
-  std::span<const detail::StorageEntry> entries;
+  span<const detail::StorageEntry> entries;
   std::size_t prefix_len;
 
   if (dir.empty()) {
