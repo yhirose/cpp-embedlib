@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+#include <cpp-embedlib/detail/config.h>
+#include <cpp-embedlib/detail/span.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace cpp_embedlib {
@@ -17,7 +20,7 @@ namespace detail {
 
 struct StorageEntry {
   std::string_view path;
-  std::span<const unsigned char> data;
+  span<const unsigned char> data;
   bool is_dir;
 };
 
@@ -80,7 +83,7 @@ inline std::optional<NormalizedPath> normalize_path(std::string_view path) {
     }
   }
 
-  // Fast path: path is already clean — no allocation, no copy
+  // Fast path: path is already clean - no allocation, no copy
   if (!needs_normalize) { return NormalizedPath{path}; }
 
   // Slow path: strip leading '/' and './', collapse '//', remove trailing '/'
@@ -224,7 +227,7 @@ public:
   bool is_dir() const { return entry_->is_dir; }
 
   // File data as bytes. Returns std::nullopt for directories.
-  std::optional<std::span<const unsigned char>> bytes() const {
+  std::optional<span<const unsigned char>> bytes() const {
     if (entry_->is_dir) { return std::nullopt; }
     return entry_->data;
   }
@@ -251,7 +254,7 @@ public:
 class EmbeddedFS {
   friend class Entry;
 
-  std::span<const detail::StorageEntry> entries_;
+  span<const detail::StorageEntry> entries_;
   static inline const detail::StorageEntry root_entry_{"", {}, true};
 
   const detail::StorageEntry *find_storage(std::string_view path) const {
@@ -268,7 +271,7 @@ class EmbeddedFS {
 
   // Find the range of entries whose path starts with prefix + "/".
   // Returns an empty span if the directory doesn't exist.
-  std::span<const detail::StorageEntry>
+  span<const detail::StorageEntry>
   find_prefix_range(std::string_view dir) const {
     auto normalized = detail::normalize_path(dir);
     if (!normalized) { return {}; }
@@ -281,7 +284,7 @@ class EmbeddedFS {
                                   detail::PathLess{});
 
     // Upper bound: increment last char of prefix to find end of range.
-    // '/' is 0x2F, '0' is 0x30 — so "sub/" becomes "sub0".
+    // '/' is 0x2F, '0' is 0x30 - so "sub/" becomes "sub0".
     prefix.back() += 1;
     auto last = std::lower_bound(first, entries_.end(),
                                  std::string_view{prefix},
@@ -291,7 +294,7 @@ class EmbeddedFS {
   }
 
 public:
-  EmbeddedFS(std::span<const detail::StorageEntry> entries)
+  EmbeddedFS(span<const detail::StorageEntry> entries)
       : entries_(entries) {}
 
   // --- Iterator ---
@@ -380,10 +383,10 @@ inline std::string_view Entry::mime_type() const {
 inline std::vector<Entry> Entry::children() const {
   if (!entry_->is_dir) { return {}; }
 
-  // entry_->path is a compile-time literal — already normalized.
+  // entry_->path is a compile-time literal - already normalized.
   // Inline the prefix-range logic to avoid redundant normalize_path().
   auto dir = entry_->path;
-  std::span<const detail::StorageEntry> entries;
+  span<const detail::StorageEntry> entries;
   std::size_t prefix_len;
 
   if (dir.empty()) {

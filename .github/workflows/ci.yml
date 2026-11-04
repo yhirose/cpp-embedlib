@@ -10,6 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        standard: [17, 20]
         include:
           - os: ubuntu-latest
             compiler: g++
@@ -27,6 +28,8 @@ jobs:
         run: >
           cmake -B build
           -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+          -DCMAKE_CXX_STANDARD=${{ matrix.standard }}
+          -DCMAKE_CXX_STANDARD_REQUIRED=ON
           -DCPP_EMBEDLIB_BUILD_TESTS=ON
           -DCPP_EMBEDLIB_BUILD_E2E_TESTS=ON
           -DCPP_EMBEDLIB_BUILD_EXAMPLES=ON

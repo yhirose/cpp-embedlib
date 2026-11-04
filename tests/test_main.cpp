@@ -301,3 +301,53 @@ TEST_CASE("root") {
     CHECK(kids.size() == 5);
   }
 }
+
+TEST_CASE("span backend") {
+  // The header selects std::span on C++20 and its own span on C++17.
+#if CPP_EMBEDLIB_CPLUSPLUS >= 202002L
+  static_assert(CPP_EMBEDLIB_HAS_STD_SPAN == 1,
+                "C++20 or later must use std::span");
+#else
+  static_assert(CPP_EMBEDLIB_HAS_STD_SPAN == 0,
+                "C++17 must use the built-in cpp_embedlib::span");
+#endif
+
+  int values[] = {1, 2, 3, 4};
+
+  auto all = cpp_embedlib::make_span(values);
+  CHECK(all.size() == 4);
+  CHECK(all.data() == values);
+  CHECK_FALSE(all.empty());
+  CHECK(all[2] == 3);
+  CHECK(all.front() == 1);
+  CHECK(all.back() == 4);
+  CHECK(all.size_bytes() == sizeof(values));
+
+  cpp_embedlib::span<int> nothing;
+  CHECK(nothing.empty());
+  CHECK(nothing.data() == nullptr);
+  CHECK(nothing.begin() == nothing.end());
+
+  cpp_embedlib::span<int> range{values + 1, values + 3};
+  CHECK(range.size() == 2);
+  CHECK(range.front() == 2);
+  CHECK(range.back() == 3);
+
+  CHECK(all.subspan(1).size() == 3);
+  CHECK(all.subspan(1).front() == 2);
+  CHECK(all.subspan(1, 2).size() == 2);
+
+#if !CPP_EMBEDLIB_HAS_STD_SPAN
+  // The C++17 fallback clamps out-of-range requests instead of inheriting
+  // std::span's preconditions (which would be undefined behavior).
+  CHECK(all.subspan(10).empty());
+  CHECK(all.subspan(1, 100).size() == 3);
+#endif
+
+  // Embedded data flows through the same type.
+  auto it = Test::FS.find("hello.txt");
+  REQUIRE(it != Test::FS.end());
+  auto bytes = (*it).bytes();
+  REQUIRE(bytes.has_value());
+  CHECK(bytes.value().size() == (*it).size());
+}
